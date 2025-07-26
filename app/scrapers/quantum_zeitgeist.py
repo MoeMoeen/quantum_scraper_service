@@ -1,5 +1,6 @@
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
+import re
 
 def scrape_quantum_zeitgeist(limit=10):
     url = "https://quantumzeitgeist.com/"
@@ -26,13 +27,43 @@ def scrape_quantum_zeitgeist(limit=10):
     for post in posts[:limit]:
         title = post.get_text(strip=True)
         link = post['href']
-        time_tag = post.find_next("time")
-        date = time_tag.get('datetime', '') if time_tag else ""
+        
+        # Look for the date in the entry-meta div
+        parent_li = post.find_parent('li')
+        date = ""
+        if parent_li and hasattr(parent_li, 'select_one'):
+            entry_meta = parent_li.select_one('div.entry-meta')
+            if entry_meta:
+                meta_text = entry_meta.get_text(strip=True)
+                # Extract date using regex pattern
+                date_match = re.search(r'(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}', meta_text)
+                if date_match:
+                    date = date_match.group(0)
+        
         articles.append({
             "title": title,
             "link": link,
-            "summary": "",  # Summary extraction can be added if needed
             "date": date
         })
 
     return articles
+
+def fetch_qz_article_body(url: str) -> str:
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Select all <p> tags inside <div class="entry-content">
+        content_div = soup.select_one('div.entry-content')
+        if not content_div:
+            return ""
+
+        paragraphs = content_div.find_all('p')
+        text_blocks = [p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)]
+        full_text = "\n\n".join(text_blocks)
+        return full_text
+
+    except Exception as e:
+        print(f"Error fetching body from {url}: {e}")
+        return ""

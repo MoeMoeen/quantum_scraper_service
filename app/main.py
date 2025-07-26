@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.scrapers.quantum_insider import scrape_quantum_insider
 from app.scrapers.testurl import scrape_testurl
-from app.scrapers.quantum_zeitgeist import scrape_quantum_zeitgeist
+from app.scrapers.quantum_zeitgeist import scrape_quantum_zeitgeist, fetch_qz_article_body
 
 app = FastAPI(
     title="Quantum Scraper API",
@@ -22,7 +22,7 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return {"message": "Quantum Scraper API is running."}
+    return {"message": "Quantum Scraper API is running on Render."}
 
 @app.get("/quantum-insider")
 def get_quantum_insider_articles(limit: int = 10):
@@ -34,4 +34,12 @@ def get_testurl_articles(limit: int = 10):
 
 @app.get("/quantum-zeitgeist")
 def get_quantum_zeitgeist_articles(limit: int = 10):
-    return scrape_quantum_zeitgeist(limit=limit)
+    articles = scrape_quantum_zeitgeist(limit=limit)
+    for article in articles:
+        try:
+            article['body'] = fetch_qz_article_body(article['link'])[:1000]  # Fetch and limit body to first 1000 characters
+        except Exception as e:
+            print(f"Error fetching body for {article['link']}: {e}")
+            article['body'] = ""
+    
+    return articles
