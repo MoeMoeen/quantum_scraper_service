@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import re
 import time
 
+
 def scrape_quantum_insider(limit=10):
     """
     Scraper for The Quantum Insider website.
